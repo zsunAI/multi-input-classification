@@ -37,8 +37,37 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_w
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = resnet18s(num_classes=num_classes)
 
+情况1，执行# 设置设备和模型
+if torch.cuda.is_available():
+    model = nn.DataParallel(model)
+model.to(device)
+# 加载预训练模型-版本1
+if os.path.exists(best_model_path):
+    model.load_state_dict(torch.load(best_model_path))
+    print("Loaded pretrained model.")
+    
+如果是情况二执行：
+# 设置设备和模型
 # 加载预训练的权重
-pretrained_dict = resnet18s(pretrained=True).state_dict()
+pretrained_dict = resnet18().state_dict()
+model_dict = model.state_dict()
+# 只保留在model_dict中的键，并且不覆盖自定义的fc层
+pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and not k.startswith('fc')}
+model_dict.update(pretrained_dict)  # 更新权重
+model.load_state_dict(model_dict)
+# 将模型转移到设备
+if torch.cuda.is_available():
+    model = nn.DataParallel(model)
+model.to(device)
+# 如果有保存的最优模型，则加载
+if os.path.exists(best_model_path):
+    model.load_state_dict(torch.load(best_model_path))
+    print("Loaded pretrained model.")
+
+
+'''
+# 加载预训练的权重
+pretrained_dict = resnet18s().state_dict()
 model_dict = model.state_dict()
 # 只保留在model_dict中的键，并且不覆盖自定义的fc层
 pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and not k.startswith('fc')}
@@ -53,6 +82,7 @@ model.to(device)
 if os.path.exists(best_model_path):
     model.load_state_dict(torch.load(best_model_path))
     print("Loaded pretrained model.")
+'''
 
 # 损失函数和优化器
 criterion = nn.BCEWithLogitsLoss() if num_classes == 1 else nn.CrossEntropyLoss()
